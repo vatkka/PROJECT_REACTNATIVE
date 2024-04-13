@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, Button, TextInput, Platform, Text, TouchableOpacity } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs'; 
 import DateTimePicker from '@react-native-community/datetimepicker'; 
 import { Picker } from '@react-native-picker/picker'; 
+import { PieChart } from 'react-native-chart-kit';
 
 const Tab = createBottomTabNavigator();
 
@@ -50,13 +51,146 @@ const ExpensesScreen = ({ expenses, deleteExpense }) => {
 };
 
 
-const StatsScreen = () => {
+const StatsScreen = ({ expenses }) => {
+  const [selectedCategory, setSelectedCategory] = useState('');
+  const [selectedPeriod, setSelectedPeriod] = useState('monthly');
+  const [data, setData] = useState([]);
+
+  useEffect(() => {
+    // Filter expenses based on selected category and period
+    const filteredData = filterExpensesByCategoryAndPeriod(selectedCategory, selectedPeriod);
+    setData(filteredData);
+  }, [selectedCategory, selectedPeriod]);
+
+  const filterExpensesByCategoryAndPeriod = (category, period) => {
+    // Logic to filter expenses based on category and period
+    // You can implement your own filtering logic here
+    return expenses[category] || [];
+  };
+
+  const colors = [
+    '#FF5733',
+    '#33FF57',
+    '#3366FF',
+    '#FF33E9',
+    '#FF5733',
+    '#33FF57',
+    '#3366FF',
+    '#FF33E9',
+    '#FF5733',
+    '#33FF57',
+    '#3366FF',
+    '#FF33E9',
+  ];
+
+  const renderPieChart = () => {
+    if (selectedCategory === 'all') {
+      const allExpenses = getAllExpenses();
+      const data = allExpenses.reduce((acc, expense) => {
+        acc[expense.category] = acc[expense.category] || 0;
+        acc[expense.category] += parseFloat(expense.amount);
+        return acc;
+      }, {});
+      const pieData = Object.keys(data).map((category, index) => ({
+        name: category,
+        amount: data[category],
+        color: colors[index % colors.length], // Use colors from the array
+        legendFontColor: '#7F7F7F',
+        legendFontSize: 15,
+      }));
+      return (
+        <>
+          <PieChart
+            data={pieData}
+            width={300}
+            height={220}
+            chartConfig={{
+              backgroundGradientFrom: '#1E2923',
+              backgroundGradientTo: '#08130D',
+              color: (opacity = 1) => `rgba(26, 255, 146, ${opacity})`,
+            }}
+            accessor="amount"
+            backgroundColor="transparent"
+            paddingLeft="15"
+            absolute
+          />
+          <View style={styles.expenseContainer}>
+            {allExpenses.map((expense, index) => (
+              <Text key={index} style={styles.expenseText}>
+                {expense.date.toDateString()} - ${expense.amount} - {expense.category}
+              </Text>
+            ))}
+          </View>
+        </>
+      );
+    } else if (selectedCategory) {
+      const selectedExpenses = expenses[selectedCategory];
+      const pieData = selectedExpenses.map((expense, index) => ({
+        name: expense.category,
+        amount: parseFloat(expense.amount),
+        color: colors[index % colors.length], // Use colors from the array
+        legendFontColor: '#7F7F7F',
+        legendFontSize: 15,
+      }));
+      return (
+        <>
+          <PieChart
+            data={pieData}
+            width={300}
+            height={220}
+            chartConfig={{
+              backgroundGradientFrom: '#1E2923',
+              backgroundGradientTo: '#08130D',
+              color: (opacity = 1) => `rgba(26, 255, 146, ${opacity})`,
+            }}
+            accessor="amount"
+            backgroundColor="transparent"
+            paddingLeft="15"
+            absolute
+          />
+          <View style={styles.expenseContainer}>
+            {selectedExpenses.map((expense, index) => (
+              <Text key={index} style={styles.expenseText}>
+                {expense.date.toDateString()} - ${expense.amount} - {expense.category}
+              </Text>
+            ))}
+          </View>
+        </>
+      );
+    }
+  };
+
+  const getAllExpenses = () => {
+    let allExpenses = [];
+    Object.keys(expenses).forEach(category => {
+      allExpenses = allExpenses.concat(expenses[category]);
+    });
+    return allExpenses;
+  };
+
   return (
-    <View style={[styles.container, { backgroundColor: '#0D1017' }]}>
-      {/* Add your statistics screen content here */}
+    <View style={[styles.container, { backgroundColor: '#0D1017', alignItems: 'center' }]}>
+      <Picker
+        selectedValue={selectedCategory}
+        style={[styles.picker, { marginBottom: 10, color: '#fff' }]} // Changed text color to white
+        dropdownIconColor="#fff"
+        onValueChange={(category) => setSelectedCategory(category)}
+        mode="dropdown"
+      >
+        <Picker.Item label="Select Category" value="" />
+        <Picker.Item label="All" value="all" />
+        {Object.keys(expenses).map(category => (
+          <Picker.Item key={category} label={category} value={category} />
+        ))}
+      </Picker>
+      <View style={{ marginTop: 20 }}>
+        {renderPieChart()}
+      </View>
     </View>
   );
 };
+
+
 
 const AddExpensesScreen = ({ addExpense }) => {
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -116,13 +250,14 @@ const AddExpensesScreen = ({ addExpense }) => {
         <Ionicons name="calendar" size={24} color="white" style={styles.icon} />
         <Button title="Select Date" onPress={() => setShowDatePicker(true)} />
         <View style={{ marginLeft: 20 }}>
-          <TextInput
-            style={styles.input}
-            placeholder="Enter Expense Amount"
-            keyboardType="numeric"
-            value={expenseAmount}
-            onChangeText={onAmountChange}
-          />
+        <TextInput
+         style={styles.input}
+         placeholder="Enter Expense Amount"
+         placeholderTextColor="white"
+         keyboardType="numeric"
+         value={expenseAmount}
+         onChangeText={onAmountChange}
+         />
         </View>
       </View>
       <View style={styles.pickerContainer}>
@@ -214,7 +349,9 @@ const App = () => {
         <Tab.Screen name="Add Expenses">
           {() => <AddExpensesScreen addExpense={addExpense} />}
         </Tab.Screen>
-        <Tab.Screen name="Stats" component={StatsScreen} />
+        <Tab.Screen name="Stats">
+          {() => <StatsScreen expenses={expenses} />}
+        </Tab.Screen>
       </Tab.Navigator>
     </NavigationContainer>
   );
@@ -269,6 +406,11 @@ const styles = StyleSheet.create({
   },
   deleteIcon: {
     marginLeft: 10,
+  },
+  expenseText: {
+    color: '#fff', // Changed text color to white
+    fontSize: 16,
+    marginBottom: 5,
   },
 });
 
