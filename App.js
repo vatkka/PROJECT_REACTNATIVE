@@ -21,12 +21,18 @@ const ExpensesScreen = ({ expenses, deleteExpense }) => {
     setSelectedExpense(null); // Clear selected expense
   };
 
+  // Function to calculate total expense for a category
+  const calculateTotalExpense = (category) => {
+    return expenses[category].reduce((total, expense) => total + parseFloat(expense.amount), 0);
+  };
+
   return (
     <View style={[styles.container, { backgroundColor: '#0D1017' }]}>
       {Object.keys(expenses).map(category => (
-        <View key={category}>
+        <View key={category} style={styles.categoryContainer}>
           <Text style={styles.categoryTitle}>{category}</Text>
-          <View style={styles.expenseContainer}>
+          {/* Wrap each category's expenses with a view and apply border */}
+          <View style={styles.expenseCategory}>
             {expenses[category].map((expense, index) => (
               <TouchableOpacity 
                 key={index} 
@@ -43,6 +49,8 @@ const ExpensesScreen = ({ expenses, deleteExpense }) => {
                 )}
               </TouchableOpacity>
             ))}
+            {/* Display total expense for the category */}
+            <Text style={[styles.totalExpense, { color: 'gray' }]}>Total: ${calculateTotalExpense(category)}</Text>
           </View>
         </View>
       ))}
@@ -81,6 +89,18 @@ const StatsScreen = ({ expenses }) => {
     '#33FF57',
     '#3366FF',
     '#FF33E9',
+    '#00f7ff',
+    '#ff00e6',
+    '#0800ff',
+    '#f2ff00',
+    '#00ff88',
+    '#9500ff',
+    '#3b4021',
+    '#092326',
+    '#161933',
+    '#596aff',
+    '#06081a',
+    '#a1aaff',
   ];
 
   const renderPieChart = () => {
@@ -411,6 +431,13 @@ const styles = StyleSheet.create({
     color: '#fff', // Changed text color to white
     fontSize: 16,
     marginBottom: 5,
+  },
+  expenseCategory: {
+    borderWidth: 2, // Increase border width
+    borderColor: 'black', // Border color
+    borderRadius: 5, // Border radius
+    padding: 12, // Increase padding for spacing
+    marginBottom: 15, // Add marginBottom
   },
 });
 
