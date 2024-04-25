@@ -1,367 +1,136 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, Button, TextInput, Platform, Text, TouchableOpacity } from 'react-native';
+import { StyleSheet } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs'; 
-import DateTimePicker from '@react-native-community/datetimepicker'; 
-import { Picker } from '@react-native-picker/picker'; 
-import { PieChart } from 'react-native-chart-kit';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { createStackNavigator } from '@react-navigation/stack';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import StatsScreen from './src/components/StatsScreen';
+import AddExpensesScreen from './src/components/AddExpenseseScreen';
+import ExpensesScreen from './src/components/ExpensesScreen';
+import TopUpsScreen from './src/components/TopUpScreen';
+import AddTopUpsScreen from './src/components/AddTopUpsScreen';
+import AccountSettingsScreen from './src/components/AccountSettingsScreen';
+import ApiTestScreen from './src/components/ApiTestScreen'; // Import ApiTestScreen
 
+const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
 
-const ExpensesScreen = ({ expenses, deleteExpense }) => {
-  const [selectedExpense, setSelectedExpense] = useState(null);
-
-  const handleLongPress = (category, index) => {
-    setSelectedExpense({ category, index });
-  };
-
-  const handleDelete = () => {
-    deleteExpense(selectedExpense.category, selectedExpense.index);
-    setSelectedExpense(null); // Clear selected expense
-  };
-
-  // Function to calculate total expense for a category
-  const calculateTotalExpense = (category) => {
-    return expenses[category].reduce((total, expense) => total + parseFloat(expense.amount), 0);
-  };
-
-  return (
-    <View style={[styles.container, { backgroundColor: '#0D1017' }]}>
-      {Object.keys(expenses).map(category => (
-        <View key={category} style={styles.categoryContainer}>
-          <Text style={styles.categoryTitle}>{category}</Text>
-          {/* Wrap each category's expenses with a view and apply border */}
-          <View style={styles.expenseCategory}>
-            {expenses[category].map((expense, index) => (
-              <TouchableOpacity 
-                key={index} 
-                onLongPress={() => handleLongPress(category, index)} // Select expense on long press
-              >
-                <Text style={styles.expense}>
-                  {expense.date.toDateString()} - ${expense.amount}
-                </Text>
-                {/* Delete button for each expense */}
-                {selectedExpense && selectedExpense.category === category && selectedExpense.index === index && (
-                  <TouchableOpacity onPress={handleDelete}>
-                    <Ionicons name="trash-outline" size={24} color="white" style={styles.deleteIcon} />
-                  </TouchableOpacity>
-                )}
-              </TouchableOpacity>
-            ))}
-            {/* Display total expense for the category */}
-            <Text style={[styles.totalExpense, { color: 'gray' }]}>Total: ${calculateTotalExpense(category)}</Text>
-          </View>
-        </View>
-      ))}
-    </View>
-  );
-};
-
-
-const StatsScreen = ({ expenses }) => {
-  const [selectedCategory, setSelectedCategory] = useState('');
-  const [selectedPeriod, setSelectedPeriod] = useState('monthly');
-  const [data, setData] = useState([]);
+const App = () => {
+  const [expenses, setExpenses] = useState([]);
+  const [topUps, setTopUps] = useState([]);
 
   useEffect(() => {
-    // Filter expenses based on selected category and period
-    const filteredData = filterExpensesByCategoryAndPeriod(selectedCategory, selectedPeriod);
-    setData(filteredData);
-  }, [selectedCategory, selectedPeriod]);
+    loadExpenses();
+    loadTopUps();
+  }, []);
 
-  const filterExpensesByCategoryAndPeriod = (category, period) => {
-    // Logic to filter expenses based on category and period
-    // You can implement your own filtering logic here
-    return expenses[category] || [];
-  };
+  useEffect(() => {
+    saveExpenses();
+    saveTopUps();
+  }, [expenses, topUps]);
 
-  const colors = [
-    '#FF5733',
-    '#33FF57',
-    '#3366FF',
-    '#FF33E9',
-    '#FF5733',
-    '#33FF57',
-    '#3366FF',
-    '#FF33E9',
-    '#FF5733',
-    '#33FF57',
-    '#3366FF',
-    '#FF33E9',
-    '#00f7ff',
-    '#ff00e6',
-    '#0800ff',
-    '#f2ff00',
-    '#00ff88',
-    '#9500ff',
-    '#3b4021',
-    '#092326',
-    '#161933',
-    '#596aff',
-    '#06081a',
-    '#a1aaff',
-  ];
-
-  const renderPieChart = () => {
-    if (selectedCategory === 'all') {
-      const allExpenses = getAllExpenses();
-      const data = allExpenses.reduce((acc, expense) => {
-        acc[expense.category] = acc[expense.category] || 0;
-        acc[expense.category] += parseFloat(expense.amount);
-        return acc;
-      }, {});
-      const pieData = Object.keys(data).map((category, index) => ({
-        name: category,
-        amount: data[category],
-        color: colors[index % colors.length], // Use colors from the array
-        legendFontColor: '#7F7F7F',
-        legendFontSize: 15,
-      }));
-      return (
-        <>
-          <PieChart
-            data={pieData}
-            width={300}
-            height={220}
-            chartConfig={{
-              backgroundGradientFrom: '#1E2923',
-              backgroundGradientTo: '#08130D',
-              color: (opacity = 1) => `rgba(26, 255, 146, ${opacity})`,
-            }}
-            accessor="amount"
-            backgroundColor="transparent"
-            paddingLeft="15"
-            absolute
-          />
-          <View style={styles.expenseContainer}>
-            {allExpenses.map((expense, index) => (
-              <Text key={index} style={styles.expenseText}>
-                {expense.date.toDateString()} - ${expense.amount} - {expense.category}
-              </Text>
-            ))}
-          </View>
-        </>
-      );
-    } else if (selectedCategory) {
-      const selectedExpenses = expenses[selectedCategory];
-      const pieData = selectedExpenses.map((expense, index) => ({
-        name: expense.category,
-        amount: parseFloat(expense.amount),
-        color: colors[index % colors.length], // Use colors from the array
-        legendFontColor: '#7F7F7F',
-        legendFontSize: 15,
-      }));
-      return (
-        <>
-          <PieChart
-            data={pieData}
-            width={300}
-            height={220}
-            chartConfig={{
-              backgroundGradientFrom: '#1E2923',
-              backgroundGradientTo: '#08130D',
-              color: (opacity = 1) => `rgba(26, 255, 146, ${opacity})`,
-            }}
-            accessor="amount"
-            backgroundColor="transparent"
-            paddingLeft="15"
-            absolute
-          />
-          <View style={styles.expenseContainer}>
-            {selectedExpenses.map((expense, index) => (
-              <Text key={index} style={styles.expenseText}>
-                {expense.date.toDateString()} - ${expense.amount} - {expense.category}
-              </Text>
-            ))}
-          </View>
-        </>
-      );
+  const loadExpenses = async () => {
+    try {
+      const storedExpenses = await AsyncStorage.getItem('expenses');
+      if (storedExpenses !== null) {
+        setExpenses(JSON.parse(storedExpenses));
+      }
+    } catch (error) {
+      console.error('Error loading expenses:', error);
     }
   };
 
-  const getAllExpenses = () => {
-    let allExpenses = [];
-    Object.keys(expenses).forEach(category => {
-      allExpenses = allExpenses.concat(expenses[category]);
-    });
-    return allExpenses;
-  };
-
-  return (
-    <View style={[styles.container, { backgroundColor: '#0D1017', alignItems: 'center' }]}>
-      <Picker
-        selectedValue={selectedCategory}
-        style={[styles.picker, { marginBottom: 10, color: '#fff' }]} // Changed text color to white
-        dropdownIconColor="#fff"
-        onValueChange={(category) => setSelectedCategory(category)}
-        mode="dropdown"
-      >
-        <Picker.Item label="Select Category" value="" />
-        <Picker.Item label="All" value="all" />
-        {Object.keys(expenses).map(category => (
-          <Picker.Item key={category} label={category} value={category} />
-        ))}
-      </Picker>
-      <View style={{ marginTop: 20 }}>
-        {renderPieChart()}
-      </View>
-    </View>
-  );
-};
-
-
-
-const AddExpensesScreen = ({ addExpense }) => {
-  const [selectedDate, setSelectedDate] = useState(new Date());
-  const [showDatePicker, setShowDatePicker] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState('');
-  const [expenseAmount, setExpenseAmount] = useState('');
-  const [successMessage, setSuccessMessage] = useState('');
-  const [disableButton, setDisableButton] = useState(true);
-
-  const handleEnter = () => {
-    const expense = {
-      date: selectedDate,
-      category: selectedCategory,
-      amount: expenseAmount
-    };
-    addExpense(expense);
-    setSuccessMessage('Expense Successfully Added!');
-    setTimeout(() => {
-      setSuccessMessage('');
-    }, 3000); // Clear message after 3 seconds
-    // Reset form fields
-    setSelectedDate(new Date());
-    setSelectedCategory('');
-    setExpenseAmount('');
-    // Disable button after adding expense
-    setDisableButton(true);
-  };
-
-  const onDateChange = (event, selectedDate) => {
-    const currentDate = selectedDate || date;
-    setShowDatePicker(Platform.OS === 'ios');
-    setSelectedDate(currentDate);
-    checkButtonStatus(currentDate, selectedCategory, expenseAmount);
-  };
-
-  const checkButtonStatus = (date, category, amount) => {
-    if (date && category && amount) {
-      setDisableButton(false);
-    } else {
-      setDisableButton(true);
+  const saveExpenses = async () => {
+    try {
+      await AsyncStorage.setItem('expenses', JSON.stringify(expenses));
+    } catch (error) {
+      console.error('Error saving expenses:', error);
     }
   };
 
-  const onCategoryChange = (category) => {
-    setSelectedCategory(category);
-    checkButtonStatus(selectedDate, category, expenseAmount);
+  const loadTopUps = async () => {
+    try {
+      const storedTopUps = await AsyncStorage.getItem('topUps');
+      if (storedTopUps !== null) {
+        setTopUps(JSON.parse(storedTopUps));
+      }
+    } catch (error) {
+      console.error('Error loading top-ups:', error);
+    }
   };
 
-  const onAmountChange = (amount) => {
-    setExpenseAmount(amount);
-    checkButtonStatus(selectedDate, selectedCategory, amount);
+  const saveTopUps = async () => {
+    try {
+      await AsyncStorage.setItem('topUps', JSON.stringify(topUps));
+    } catch (error) {
+      console.error('Error saving top-ups:', error);
+    }
   };
-
-  return (
-    <View style={[styles.container, { backgroundColor: '#0D1017' }]}>
-      <View style={[styles.buttonContainer, { marginTop: 20, flexDirection: 'row', alignItems: 'center', marginLeft: 10 }]}>
-        <Ionicons name="calendar" size={24} color="white" style={styles.icon} />
-        <Button title="Select Date" onPress={() => setShowDatePicker(true)} />
-        <View style={{ marginLeft: 20 }}>
-        <TextInput
-         style={styles.input}
-         placeholder="Enter Expense Amount"
-         placeholderTextColor="white"
-         keyboardType="numeric"
-         value={expenseAmount}
-         onChangeText={onAmountChange}
-         />
-        </View>
-      </View>
-      <View style={styles.pickerContainer}>
-        {showDatePicker && (
-          <DateTimePicker
-            value={selectedDate}
-            mode="date"
-            is24Hour={true}
-            display="default"
-            onChange={onDateChange}
-          />
-        )}
-        <Picker
-          selectedValue={selectedCategory}
-          style={[styles.picker, { backgroundColor: '#C9D2D9', width: 210 }]}
-          dropdownIconColor="#000"
-          onValueChange={onCategoryChange}
-          mode="dropdown"
-          itemStyle={{ height: 30 }}
-        >
-          <Picker.Item label="Select Category" value="" />
-          <Picker.Item label="Food" value="Food" />
-          <Picker.Item label="Pharmacy" value="Pharmacy" />
-          <Picker.Item label="Clothes" value="Clothes" />
-          <Picker.Item label="Gifts" value="Gifts" />
-          <Picker.Item label="Rent" value="Rent" />
-          <Picker.Item label="Repairs" value="Repairs" />
-          <Picker.Item label="Transportation" value="Transportation" />
-          <Picker.Item label="Child Care" value="Child Care" />
-          <Picker.Item label="Health Care" value="Health Care"/>
-          <Picker.Item label="Other" value="Other"/>
-        </Picker>
-      </View>
-      <View style={[styles.buttonContainer, { flexDirection: 'row', justifyContent: 'flex-end', marginRight: 10 }]}>
-        <Button title="Add Expense" onPress={handleEnter} disabled={disableButton} />
-      </View>
-      {successMessage ? <Text style={styles.successMessage}>{successMessage}</Text> : null}
-    </View>
-  );
-};
-
-const App = () => {
-  const [expenses, setExpenses] = useState({});
 
   const addExpense = (expense) => {
-    const updatedExpenses = { ...expenses };
-    if (updatedExpenses[expense.category]) {
-      updatedExpenses[expense.category].push(expense);
-    } else {
-      updatedExpenses[expense.category] = [expense];
-    }
+    setExpenses([...expenses, expense]);
+  };
+
+  const deleteExpense = (index) => {
+    const updatedExpenses = [...expenses];
+    updatedExpenses.splice(index, 1);
     setExpenses(updatedExpenses);
   };
 
-  const deleteExpense = (category, index) => {
-    const updatedExpenses = { ...expenses };
-    updatedExpenses[category].splice(index, 1);
-    if (updatedExpenses[category].length === 0) {
-      delete updatedExpenses[category]; // Remove category if it becomes empty
-    }
-    setExpenses(updatedExpenses);
+  const addTopUp = (topUp) => {
+    setTopUps([...topUps, topUp]);
+  };
+
+  const deleteTopUp = (index) => {
+    const updatedTopUps = [...topUps];
+    updatedTopUps.splice(index, 1);
+    setTopUps(updatedTopUps);
+  };
+
+  const getTotal = () => {
+    let total = 0;
+    expenses.forEach((expense) => {
+      total += parseFloat(expense.amount);
+    });
+    return total.toFixed(2);
   };
 
   return (
     <NavigationContainer>
       <Tab.Navigator
         screenOptions={({ route }) => ({
-          tabBarStyle: { backgroundColor: '#161B21' },
-          tabBarActiveTintColor: 'white',
-          tabBarInactiveTintColor: 'gray',
-          headerStyle: { backgroundColor: '#161B21' },
-          headerTintColor: 'white',
           tabBarIcon: ({ focused, color, size }) => {
             let iconName;
             if (route.name === 'Expenses') {
               iconName = 'eye';
             } else if (route.name === 'Add Expenses') {
               iconName = 'add-circle-outline';
+            } else if (route.name === 'Top Ups') {
+              iconName = 'card-outline';
+            } else if (route.name === 'Add Top-Up') {
+              iconName = 'add-circle-outline';
             } else if (route.name === 'Stats') {
               iconName = 'stats-chart-sharp';
+            } else if (route.name === 'AccountSettings') {
+              iconName = 'settings-outline';
             }
             return <Ionicons name={iconName} size={size} color={color} />;
           },
         })}
+        tabBarOptions={{
+          activeTintColor: '#00A6FF',
+          inactiveTintColor: 'gray',
+          style: {
+            backgroundColor: '#F9F9F9',
+            borderTopWidth: 0,
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: -3 },
+            shadowOpacity: 0.1,
+            shadowRadius: 4,
+            elevation: 5,
+          },
+        }}
       >
         <Tab.Screen name="Expenses">
           {() => <ExpensesScreen expenses={expenses} deleteExpense={deleteExpense} />}
@@ -369,15 +138,40 @@ const App = () => {
         <Tab.Screen name="Add Expenses">
           {() => <AddExpensesScreen addExpense={addExpense} />}
         </Tab.Screen>
-        <Tab.Screen name="Stats">
-          {() => <StatsScreen expenses={expenses} />}
+        <Tab.Screen name="Top Ups">
+          {() => <TopUpsScreen topUps={topUps} deleteTopUp={deleteTopUp} />}
         </Tab.Screen>
+        <Tab.Screen name="Add Top-Up">
+          {() => <AddTopUpsScreen addTopUp={addTopUp} />}
+        </Tab.Screen>
+        <Tab.Screen name="Stats">
+          {() => <StatsScreen topUps={topUps} expenses={expenses} />}
+        </Tab.Screen>
+        <Tab.Screen name="AccountSettings">
+          {({ navigation }) => <AccountSettingsScreen navigation={navigation} />}
+        </Tab.Screen>
+        <Tab.Screen name="ApiTest" component={ApiTestScreen} />
+
       </Tab.Navigator>
     </NavigationContainer>
   );
 };
 
 const styles = StyleSheet.create({
+  overviewContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  overviewTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 10,
+  },
+  overviewAmount: {
+    fontSize: 32,
+    color: '#00A6FF',
+  },
   container: {
     flex: 1,
     justifyContent: 'flex-start',
